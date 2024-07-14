@@ -24,7 +24,6 @@ func setConfig() {
 			// Config file was found but another error was produced
 		}
 	}
-
 }
 
 func main() {
@@ -33,39 +32,18 @@ func main() {
 	webAppUrl := viper.GetString("webapp.url")
 	webAppPort := viper.GetInt("webapp.port")
 	gatewayPort := viper.GetInt("gateway.port")
-	jenkinsUrl := viper.GetString("jenkins.url")
-	jenkinsPort := viper.GetInt("jenkins.port")
 
 	envStr := fmt.Sprintf("%s%s", "environment: ", env)
 	webAppUrlStr := fmt.Sprintf("%s%s", "webapp.url: ", webAppUrl)
 	webAppPortStr := fmt.Sprintf("%s%d", "webapp.port: ", webAppPort)
 	gatewayPortStr := fmt.Sprintf("%s%d", "gateway.port: ", gatewayPort)
-	jenkinsUrlStr := fmt.Sprintf("%s%s", "jenkins.url: ", jenkinsUrl)
-	jenkinsPortStr := fmt.Sprintf("%s%d", "jenkins.port: ", jenkinsPort)
 
 	fmt.Println(envStr)
 	fmt.Println(webAppUrlStr)
 	fmt.Println(webAppPortStr)
 	fmt.Println(gatewayPortStr)
-	fmt.Println(jenkinsUrlStr)
-	fmt.Println(jenkinsPortStr)
 
 	r := gin.Default()
-
-	jenkinsRoute := "/jenkins/*proxyPath"
-
-	// reroute to jenkins server
-	r.Any(jenkinsRoute, func(c *gin.Context) {
-
-		target := fmt.Sprintf("http://%s:%d", jenkinsUrl, jenkinsPort) // The target server URL
-		remote, err := url.Parse(target)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid target URL"})
-			return
-		}
-		proxy := httputil.NewSingleHostReverseProxy(remote)
-		proxy.ServeHTTP(c.Writer, c.Request)
-	})
 
 	webAppRoute := ""
 
