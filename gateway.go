@@ -53,7 +53,7 @@ func main() {
 		webAppRoute = "/*proxyPath"
 	}
 
-	r.Any(webAppRoute, func(c *gin.Context) {
+	r.GET(webAppRoute, func(c *gin.Context) {
 
 		target := fmt.Sprintf("http://%s:%d", webAppUrl, webAppPort) // The target server URL
 		remote, err := url.Parse(target)
@@ -65,12 +65,15 @@ func main() {
 		originalDirector := proxy.Director
 		proxy.Director = func(req *http.Request) {
 			originalDirector(req)
+			fmt.Println("req.URL.Scheme: %s", req.URL.Scheme)
+			fmt.Println("req.URL.Host: %s", req.URL.Host)
+			fmt.Println("req.URL.Path: %s", req.URL.Path)
 			// Rewrite the request URL here
 			req.URL.Path = c.Param("proxyPath")
 			// Optionally, you can modify headers or other parts of the request
 		}
-		targetStr := fmt.Sprintf("Redirecting to target address %s with partial url %s", target, c.Param("proxyPath"))
-		fmt.Println(targetStr)
+		message := fmt.Sprintf("Redirecting to target address %s with partial url %s", target, c.Param("proxyPath"))
+		fmt.Println(message)
 		proxy.ServeHTTP(c.Writer, c.Request)
 	})
 
