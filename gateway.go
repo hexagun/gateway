@@ -69,7 +69,8 @@ func main() {
 			req.URL.Path = c.Param("proxyPath")
 			// Optionally, you can modify headers or other parts of the request
 		}
-
+		targetStr := fmt.Sprintf("Redirecting to target address %s with partial url %s", target, c.Param("proxyPath"))
+		fmt.Println(targetStr)
 		proxy.ServeHTTP(c.Writer, c.Request)
 	})
 
