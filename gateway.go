@@ -28,7 +28,7 @@ func setConfig() {
 
 func main() {
 	setConfig()
-	env := fmt.Sprintf("%s%s", "environment: ", viper.GetString("environment"))
+	env := viper.GetString("environment")
 	webAppUrl := viper.GetString("webapp.url")
 	webAppPort := viper.GetInt("webapp.port")
 	gatewayPort := viper.GetInt("gateway.port")
