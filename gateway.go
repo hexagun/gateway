@@ -2,6 +2,11 @@ package main
 
 import (
 	"fmt"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
+
+	"github.com/gin-gonic/gin"
 
 	"github.com/spf13/viper"
 )
@@ -19,32 +24,60 @@ func setConfig() {
 			// Config file was found but another error was produced
 		}
 	}
-
 }
 
 func main() {
 	setConfig()
 	env := fmt.Sprintf("%s%s", "environment: ", viper.GetString("environment"))
-	webAppUrl := fmt.Sprintf("%s%s", "webapp.url: ", viper.GetString("webapp.url"))
-	webAppPortLocal := fmt.Sprintf("%s%d", "webapp.port.local: ", viper.GetInt("webapp.port.local"))
-	webAppPortDev := fmt.Sprintf("%s%d", "webapp.port.dev: ", viper.GetInt("webapp.port.dev"))
-	webAppPortStaging := fmt.Sprintf("%s%d", "webapp.port.staging: ", viper.GetInt("webapp.port.staging"))
-	webAppPortProd := fmt.Sprintf("%s%d", "webapp.port.prod: ", viper.GetInt("webapp.port.prod"))
+	webAppUrl := viper.GetString("webapp.url")
+	webAppPort := viper.GetInt("webapp.port")
+	gatewayPort := viper.GetInt("gateway.port")
 
-	gatewayPort := fmt.Sprintf("%s%d", "gateway.port: ", viper.GetInt("gateway.port"))
+	envStr := fmt.Sprintf("%s%s", "environment: ", env)
+	webAppUrlStr := fmt.Sprintf("%s%s", "webapp.url: ", webAppUrl)
+	webAppPortStr := fmt.Sprintf("%s%d", "webapp.port: ", webAppPort)
+	gatewayPortStr := fmt.Sprintf("%s%d", "gateway.port: ", gatewayPort)
 
-	jenkinsUrl := fmt.Sprintf("%s%s", "jenkins.url: ", viper.GetString("jenkins.url"))
-	jenkinsPort := fmt.Sprintf("%s%d", "jenkins.port: ", viper.GetInt("jenkins.port"))
+	fmt.Println(envStr)
+	fmt.Println(webAppUrlStr)
+	fmt.Println(webAppPortStr)
+	fmt.Println(gatewayPortStr)
 
-	fmt.Println(env)
-	fmt.Println(webAppUrl)
-	fmt.Println(webAppPortLocal)
-	fmt.Println(webAppPortDev)
-	fmt.Println(webAppPortStaging)
-	fmt.Println(webAppPortProd)
+	r := gin.Default()
 
-	fmt.Println(gatewayPort)
+	webAppRoute := ""
 
-	fmt.Println(jenkinsUrl)
-	fmt.Println(jenkinsPort)
+	if env != "prod" {
+		webAppRoute = fmt.Sprintf("/%s/*proxyPath", viper.GetString("environment"))
+	} else {
+		webAppRoute = "/*proxyPath"
+	}
+
+	r.GET(webAppRoute, func(c *gin.Context) {
+
+		target := fmt.Sprintf("http://%s:%d", webAppUrl, webAppPort) // The target server URL
+		remote, err := url.Parse(target)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid target URL"})
+			return
+		}
+		proxy := httputil.NewSingleHostReverseProxy(remote)
+		originalDirector := proxy.Director
+		proxy.Director = func(req *http.Request) {
+			originalDirector(req)
+			fmt.Println("req.URL.Scheme: %s", req.URL.Scheme)
+			fmt.Println("req.URL.Host: %s", req.URL.Host)
+			fmt.Println("req.URL.Path: %s", req.URL.Path)
+			// Rewrite the request URL here
+			req.URL.Path = c.Param("proxyPath")
+			// Optionally, you can modify headers or other parts of the request
+		}
+		message := fmt.Sprintf("Redirecting to target address %s with partial url %s", target, c.Param("proxyPath"))
+		fmt.Println(message)
+		proxy.ServeHTTP(c.Writer, c.Request)
+	})
+
+	// Start the server
+	port := fmt.Sprintf("%s%d", ":", gatewayPort)
+	r.Run(port)
 }
